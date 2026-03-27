@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trouver ma Table | Réception</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .search-container {
+            background: #1e293b;
+            padding: 40px 25px;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 2px solid #786631;
+        }
+        h2 { margin-bottom: 25px; font-weight: 600; color: #786631; }
+        p.subtitle { font-size: 0.9rem; color: #94a3b8; margin-bottom: 20px; }
+        
+        .input-group { position: relative; margin-bottom: 20px; }
+        input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #786631;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+            font-size: 1.1rem;
+            outline: none;
+            text-align: center;
+        }
+        input:focus { border-color: #890c09; box-shadow: 0 0 10px rgba(137, 12, 9, 0.3); }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #890c09;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:hover { background: #a50e0b; }
+        button:active { transform: scale(0.98); }
+        
+        #resultCard {
+            display: none;
+            border: 2px solid #786631;
+            background: #0f172a;
+            padding: 30px;
+            margin-top: 30px;
+            border-radius: 20px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .name-highlight { color: #786631; font-weight: bold; font-size: 1.3rem; display: block; margin-top: 5px; }
+        .table-label { color: white; font-size: 0.8rem; letter-spacing: 3px; margin-top: 20px; font-weight: 300; }
+        .table-number { font-size: 5.5rem; color: #890c09; font-weight: 900; line-height: 1; margin: 10px 0; }
+        
+        .loader { display: none; margin: 10px auto; border: 3px solid #f3f3f3; border-top: 3px solid #786631; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="search-container">
+    <h2>Trouver ma Table</h2>
+    <p class="subtitle">Entrez votre nom ou nom d'artiste.</p>
+    
+    <div class="input-group">
+        <input type="text" id="guestName" placeholder="Ex: Sagbohan, d'Almeida...">
+    </div>
+    <button id="searchBtn" onclick="trouverTable()">RECHERCHER</button>
+    <div id="loader" class="loader"></div>
+
+    <div id="resultCard">
+        <p style="margin:0;">Bienvenue <span id="displayName" class="name-highlight"></span></p>
+        <p class="table-label">VOTRE TABLE EST LA :</p>
+        <div class="table-number" id="tableNum"></div>
+    </div>
+</div>
+
+<script>
+    // Configuration Supabase avec tes identifiants
+    const SUPABASE_URL = 'https://zcldavwxehfnteiilztg.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_bOyD0-uMmO7RN3OwFQFFZQ_miIJKqc5';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function trouverTable() {
+        const input = document.getElementById('guestName');
+        const nomSaisi = input.value.trim();
+        const card = document.getElementById('resultCard');
+        const loader = document.getElementById('loader');
+        const btn = document.getElementById('searchBtn');
+
+        if (nomSaisi.length < 2) {
+            alert("Veuillez saisir au moins 2 caractères.");
+            return;
+        }
+
+        // UI Feedback
+        card.style.display = 'none';
+        loader.style.display = 'block';
+        btn.disabled = true;
+
+        try {
+            // Recherche floue sur le nom
+            const { data, error } = await db
+                .from('invites')
+                .select('nom, tables(numero)')
+                .ilike('nom', `%${nomSaisi}%`)
+                .limit(1);
+
+            if (data && data.length > 0) {
+                document.getElementById('displayName').innerText = data[0].nom;
+                document.getElementById('tableNum').innerText = data[0].tables.numero;
+                card.style.display = 'block';
+            } else {
+                alert("Désolé, nous n'avons pas trouvé de table pour ce nom. Vérifiez l'orthographe ou voyez une hôtesse.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erreur de connexion. Veuillez réessayer.");
+        } finally {
+            loader.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    // Recherche avec la touche Entrée
+    document.getElementById('guestName').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') { trouverTable(); }
+    });
+</script>
+
+</body>
+</html>
