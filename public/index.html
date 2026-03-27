@@ -15,7 +15,7 @@
     }
     body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; padding-bottom: 80px; overflow-x: hidden; }
 
-    /* --- SIDEBAR COULISSANTE (DRAWER) --- */
+    /* --- SIDEBAR TIROIR --- */
     .sidebar-drawer {
       position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
       background: var(--dark2); border-right: 2px solid var(--gold);
@@ -28,15 +28,14 @@
     }
     .overlay-sidebar.open { display: block; }
 
-    /* --- HEADER (FIXE & PROPRE) --- */
+    /* --- HEADER --- */
     .header { background: linear-gradient(135deg, var(--dark2), var(--dark3)); padding: 16px; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--gold); }
     .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    
     .menu-btn { background: none; border: none; color: var(--gold); font-size: 24px; cursor: pointer; }
     .header h1 { font-size: 16px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
     .hotesse-badge { background: var(--gold); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 
-    /* --- STATS & RECHERCHE (COMME AVANT) --- */
+    /* --- STATS & RECHERCHE --- */
     .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
     .stat-card { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px; text-align: center; border: 1px solid rgba(120, 102, 49, 0.2); }
     .stat-number { font-size: 20px; font-weight: 800; color: var(--green); }
@@ -46,18 +45,17 @@
     .search-box input { width: 100%; padding: 12px 16px 12px 40px; background: var(--dark); border: 1px solid rgba(120, 102, 49, 0.4); border-radius: 25px; color: var(--text); outline: none; font-size: 14px; }
     .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gold); }
 
-    /* --- NAVIGATION --- */
-    .tabs { display: flex; background: var(--dark2); padding: 6px; gap: 4px; position: sticky; top: 165px; z-index: 99; }
+    /* --- TABS --- */
+    .tabs { display: flex; background: var(--dark2); padding: 6px; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text2); }
     .tab.active { background: var(--gold); color: white; }
 
     .content { padding: 15px; }
 
-    /* --- CARDS & ITEMS --- */
+    /* --- CARDS --- */
     .table-card { background: var(--card); border-radius: 14px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }
     .table-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; cursor: pointer; }
     .table-number { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; }
-    
     .status-full { background: var(--green); }
     .status-partial { background: var(--gold); }
     .status-empty { background: #475569; }
@@ -67,7 +65,12 @@
     .check-btn.present { border-color: var(--green); background: var(--green); color: white; }
     .check-btn.absent { border-color: #475569; color: #475569; background: transparent; }
 
-    /* --- MODALS & FLOATING --- */
+    /* --- BOTTOM NAV --- */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--dark2); border-top: 1px solid var(--gold); display: flex; z-index: 100; height: 65px; }
+    .nav-btn { flex: 1; border: none; background: transparent; color: var(--text2); font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+    .nav-btn.active { color: var(--green); }
+
+    /* --- MODALS --- */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
     .modal { background: var(--card); border-radius: 20px; padding: 25px; width: 100%; max-width: 340px; border: 1px solid var(--gold); text-align: center; }
@@ -75,10 +78,6 @@
     .modal-btn { width: 100%; padding: 14px; background: var(--green); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
 
     .btn-add-floating { position: fixed; bottom: 85px; right: 20px; width: 56px; height: 56px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 110; }
-
-    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--dark2); border-top: 1px solid var(--gold); display: flex; z-index: 100; height: 65px; }
-    .nav-btn { flex: 1; border: none; background: transparent; color: var(--text2); font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-    .nav-btn.active { color: var(--green); }
 
     .invites-list { display: none; padding: 5px 10px; background: rgba(0,0,0,0.15); }
     .invites-list.open { display: block; }
@@ -322,14 +321,29 @@
       }).join('')}`;
   }
 
+  // --- RECHERCHE ROBUSTE ---
   function onSearch(val) {
+    const content = document.getElementById('mainContent');
     if (!val.trim()) { renderCurrentTab(); return; }
-    const res = allInvites.filter(i => i.nom.toLowerCase().includes(val.toLowerCase()));
-    document.getElementById('mainContent').innerHTML = res.map(inv => `
-      <div class="table-card" style="padding:12px; display:flex; align-items:center; gap:12px;">
-        <button class="check-btn ${inv.statut==='present'?'present':'absent'}" onclick="toggleInvite(${inv.id}, '${inv.statut}')">${inv.statut==='present'?'✓':'○'}</button>
-        <div style="flex:1"><div style="font-weight:600">${inv.nom}</div><div style="font-size:11px; color:var(--gold)">Table ${inv.tables?inv.tables.numero:'?'}</div></div>
-      </div>`).join('');
+    const query = val.toLowerCase();
+    
+    const res = allInvites.filter(inv => {
+      const nomInvite = inv.nom ? inv.nom.toLowerCase() : "";
+      return nomInvite.includes(query);
+    });
+
+    if (res.length === 0) {
+      content.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text2);">🔍 Aucun résultat pour "${val}"</div>`;
+    } else {
+      content.innerHTML = res.map(inv => `
+        <div class="table-card" style="padding:12px; display:flex; align-items:center; gap:12px; border-left:4px solid ${inv.statut==='present'?'var(--green)':'#475569'}">
+          <button class="check-btn ${inv.statut==='present'?'present':'absent'}" onclick="toggleInvite(${inv.id}, '${inv.statut}')">${inv.statut==='present'?'✓':'○'}</button>
+          <div style="flex:1">
+            <div style="font-weight:600; font-size:14px;">${inv.nom}</div>
+            <div style="font-size:11px; color:var(--gold)">🪑 Table ${inv.tables ? (inv.tables.numero || inv.tables.nom) : '?'}</div>
+          </div>
+        </div>`).join('');
+    }
   }
 
   function showToast(m) {
