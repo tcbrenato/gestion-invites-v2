@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Gestion Invités</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --gold: #C9A84C; --gold-light: #E8C97A;
+      --dark: #1A1A2E; --dark2: #16213E; --dark3: #0F3460;
+      --card: #1E2A45; --green: #2ECC71; --red: #E74C3C;
+      --text: #F0F0F0; --text2: #A0A0B0;
+    }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; padding-bottom: 80px; }
+    .header { background: linear-gradient(135deg, var(--dark2), var(--dark3)); padding: 16px; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .header h1 { font-size: 18px; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
+    .hotesse-badge { background: var(--gold); color: var(--dark); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat-card { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 8px; text-align: center; border: 1px solid rgba(201,168,76,0.2); }
+    .stat-number { font-size: 22px; font-weight: 800; color: var(--gold); }
+    .stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+    .search-box { position: relative; }
+    .search-box input { width: 100%; padding: 10px 16px 10px 40px; background: rgba(255,255,255,0.08); border: 1px solid rgba(201,168,76,0.3); border-radius: 25px; color: var(--text); font-size: 14px; outline: none; }
+    .search-box input::placeholder { color: var(--text2); }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--gold); }
+    .tabs { display: flex; background: var(--dark2); padding: 6px; gap: 4px; position: sticky; top: 185px; z-index: 99; }
+    .tab { flex: 1; padding: 8px 4px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text2); transition: all 0.2s; }
+    .tab.active { background: var(--gold); color: var(--dark); }
+    .content { padding: 12px; }
+    .table-card { background: var(--card); border-radius: 14px; margin-bottom: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    .table-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; background: linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.05)); }
+    .table-header-left { display: flex; align-items: center; gap: 10px; }
+    .table-number { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: var(--dark); flex-shrink: 0; }
+    .table-info h3 { font-size: 14px; font-weight: 700; }
+    .table-info p { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .table-progress { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .progress-text { font-size: 12px; font-weight: 700; }
+    .progress-bar { width: 60px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .chevron { font-size: 12px; color: var(--text2); margin-left: 8px; transition: transform 0.3s; }
+    .chevron.open { transform: rotate(180deg); }
+    .invites-list { display: none; padding: 0 10px 10px; }
+    .invites-list.open { display: block; }
+    .invite-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); gap: 8px; }
+    .invite-item:last-child { border-bottom: none; }
+    .invite-info { flex: 1; min-width: 0; }
+    .invite-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .invite-meta { font-size: 10px; color: var(--text2); margin-top: 2px; }
+    .invite-meta.present { color: var(--green); }
+    .check-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; background: transparent; }
+    .check-btn.absent { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.2); }
+    .check-btn.present { border-color: var(--green); background: var(--green); color: white; }
+    .check-btn:active { transform: scale(0.9); }
+    .badge-persons { background: rgba(201,168,76,0.15); color: var(--gold); border-radius: 10px; padding: 2px 7px; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+    .status-full { background: var(--green); }
+    .status-partial { background: var(--gold); }
+    .status-empty { background: rgba(255,255,255,0.2); }
+    .invite-card { background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.05); }
+    .invite-card.present { border-color: rgba(46,204,113,0.3); }
+    .invite-card-info { flex: 1; min-width: 0; }
+    .invite-card-name { font-size: 14px; font-weight: 700; }
+    .invite-card-table { font-size: 11px; color: var(--gold); margin-top: 2px; }
+    .invite-card-time { font-size: 10px; color: var(--green); margin-top: 2px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border-radius: 20px; padding: 24px; width: 100%; max-width: 320px; border: 1px solid var(--gold); }
+    .modal h2 { font-size: 18px; color: var(--gold); margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+    .modal input { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(201,168,76,0.4); border-radius: 10px; color: var(--text); font-size: 16px; outline: none; margin-bottom: 12px; }
+    .modal-btn { width: 100%; padding: 12px; background: var(--gold); color: var(--dark); border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--dark2); border-top: 1px solid rgba(201,168,76,0.3); display: flex; z-index: 100; }
+    .nav-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; color: var(--text2); font-size: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: color 0.2s; }
+    .nav-btn .icon { font-size: 20px; }
+    .nav-btn.active { color: var(--gold); }
+    .live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; display: inline-block; margin-right: 4px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .no-results { text-align: center; color: var(--text2); padding: 40px 20px; font-size: 14px; }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 10px 20px; border-radius: 25px; font-size: 13px; font-weight: 600; z-index: 300; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .dash-card { background: var(--card); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+    .dash-card .big-number { font-size: 36px; font-weight: 800; color: var(--gold); }
+    .dash-card .label { font-size: 11px; color: var(--text2); margin-top: 4px; }
+    .tables-overview { display: flex; flex-direction: column; gap: 8px; }
+    .table-overview-row { background: var(--card); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+    .table-overview-num { font-size: 12px; font-weight: 700; color: var(--gold); width: 65px; flex-shrink: 0; }
+    .table-overview-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+    .table-overview-fill { height: 100%; border-radius: 3px; }
+    .table-overview-count { font-size: 11px; color: var(--text2); width: 40px; text-align: right; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="modal-overlay open" id="modalHotesse">
+  <div class="modal">
+    <h2>👋 Bienvenue</h2>
+    <p>Entre ton prénom pour commencer à gérer les invités</p>
+    <input type="text" id="inputHotesse" placeholder="Ton prénom..." maxlength="30">
+    <button class="modal-btn" id="btnCommencer">Commencer ✨</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="header">
+  <div class="header-top">
+    <h1>✨ Gestion Invités</h1>
+    <div class="hotesse-badge" id="hotesseName">...</div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-number" id="statPresents">0</div><div class="stat-label">Présents</div></div>
+    <div class="stat-card"><div class="stat-number" id="statAbsents">0</div><div class="stat-label">Attendus</div></div>
+    <div class="stat-card"><div class="stat-number" id="statTotal">0</div><div class="stat-label">Total</div></div>
+  </div>
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Rechercher un invité...">
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-tables">🪑 Tables</button>
+  <button class="tab" id="tab-invites">👥 Invités</button>
+  <button class="tab" id="tab-dashboard">📊 Global</button>
+</div>
+
+<div class="content" id="mainContent"></div>
+
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-tables"><span class="icon">🪑</span>Tables</button>
+  <button class="nav-btn" id="nav-invites"><span class="icon">👥</span>Invités</button>
+  <button class="nav-btn" id="nav-dashboard"><span class="icon">📊</span>Global</button>
+</div>
+
+<script>
+(function() {
+  const SUPA_URL = 'https://zcldavwxehfnteiilztg.supabase.co';
+  const SUPA_KEY = 'sb_publishable_bOyD0-uMmO7RN3OwFQFFZQ_miIJKqc5';
+  const db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  let hotesse = localStorage.getItem('hotesse') || '';
+  let currentTab = 'tables';
+  let allTables = [];
+  let allInvites = [];
+  let openTables = new Set();
+
+  // INIT
+  function init() {
+    if (hotesse) {
+      document.getElementById('modalHotesse').classList.remove('open');
+      document.getElementById('hotesseName').textContent = '👤 ' + hotesse;
+    }
+    loadData();
+    subscribeRealtime();
+
+    document.getElementById('btnCommencer').addEventListener('click', setHotesse);
+    document.getElementById('inputHotesse').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') setHotesse();
+    });
+    document.getElementById('hotesseName').addEventListener('click', changeHotesse);
+    document.getElementById('searchInput').addEventListener('input', function() {
+      onSearch(this.value);
+    });
+    document.getElementById('tab-tables').addEventListener('click', function() { showTab('tables'); });
+    document.getElementById('tab-invites').addEventListener('click', function() { showTab('invites'); });
+    document.getElementById('tab-dashboard').addEventListener('click', function() { showTab('dashboard'); });
+    document.getElementById('nav-tables').addEventListener('click', function() { showTab('tables'); });
+    document.getElementById('nav-invites').addEventListener('click', function() { showTab('invites'); });
+    document.getElementById('nav-dashboard').addEventListener('click', function() { showTab('dashboard'); });
+  }
+
+  function setHotesse() {
+    var val = document.getElementById('inputHotesse').value.trim();
+    if (!val) return;
+    hotesse = val;
+    localStorage.setItem('hotesse', val);
+    document.getElementById('hotesseName').textContent = '👤 ' + val;
+    document.getElementById('modalHotesse').classList.remove('open');
+  }
+
+  function changeHotesse() {
+    document.getElementById('inputHotesse').value = hotesse;
+    document.getElementById('modalHotesse').classList.add('open');
+  }
+
+  async function loadData() {
+    var t = await db.from('tables').select('*').order('numero');
+    var i = await db.from('invites').select('*, tables(numero, nom)').order('nom');
+    allTables = t.data || [];
+    allInvites = i.data || [];
+    updateStats();
+    renderCurrentTab();
+  }
+
+  function subscribeRealtime() {
+    db.channel('invites-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invites' }, function(payload) {
+        var idx = allInvites.findIndex(function(i) { return i.id === (payload.new && payload.new.id) || i.id === (payload.old && payload.old.id); });
+        if (payload.eventType === 'UPDATE' && idx !== -1) {
+          allInvites[idx] = Object.assign({}, allInvites[idx], payload.new);
+        } else if (payload.eventType === 'INSERT') {
+          allInvites.push(payload.new);
+        } else if (payload.eventType === 'DELETE' && idx !== -1) {
+          allInvites.splice(idx, 1);
+        }
+        updateStats();
+        renderCurrentTab();
+      })
+      .subscribe();
+  }
+
+  function updateStats() {
+    var presents = allInvites.filter(function(i) { return i.statut === 'present'; }).reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+    var total = allInvites.reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+    document.getElementById('statPresents').textContent = presents;
+    document.getElementById('statAbsents').textContent = total - presents;
+    document.getElementById('statTotal').textContent = total;
+  }
+
+  function showTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById('searchInput').value = '';
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('nav-' + tab).classList.add('active');
+    renderCurrentTab();
+  }
+
+  function renderCurrentTab() {
+    if (currentTab === 'tables') renderTables();
+    else if (currentTab === 'invites') renderInvites();
+    else renderDashboard();
+  }
+
+  function renderTables() {
+    var content = document.getElementById('mainContent');
+    if (!allTables.length) { content.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text2)">Chargement...</p>'; return; }
+    content.innerHTML = allTables.map(function(table) {
+      var invites = allInvites.filter(function(i) { return i.table_id === table.id; });
+      var presents = invites.filter(function(i) { return i.statut === 'present'; }).reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+      var total = invites.reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+      var pct = total > 0 ? (presents / total) * 100 : 0;
+      var statusClass = pct === 100 ? 'status-full' : pct > 0 ? 'status-partial' : 'status-empty';
+      var isOpen = openTables.has(table.id);
+      var color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--gold)' : 'var(--text2)';
+      return '<div class="table-card">' +
+        '<div class="table-header" data-tableid="' + table.id + '">' +
+          '<div class="table-header-left">' +
+            '<div class="table-number ' + statusClass + '">' + table.numero + '</div>' +
+            '<div class="table-info"><h3>' + table.nom + '</h3><p><span class="live-dot"></span>' + presents + ' / ' + total + ' personnes</p></div>' +
+          '</div>' +
+          '<div class="table-progress">' +
+            '<span class="progress-text" style="color:' + color + '">' + Math.round(pct) + '%</span>' +
+            '<div class="progress-bar"><div class="progress-fill ' + statusClass + '" style="width:' + pct + '%"></div></div>' +
+          '</div>' +
+          '<span class="chevron ' + (isOpen ? 'open' : '') + '">▼</span>' +
+        '</div>' +
+        '<div class="invites-list ' + (isOpen ? 'open' : '') + '">' +
+          invites.map(function(inv) { return renderInviteItem(inv); }).join('') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    document.querySelectorAll('.table-header').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var tid = parseInt(this.getAttribute('data-tableid'));
+        if (openTables.has(tid)) openTables.delete(tid); else openTables.add(tid);
+        renderTables();
+      });
+    });
+
+    document.querySelectorAll('.check-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleInvite(parseInt(this.getAttribute('data-id')), this.getAttribute('data-statut'));
+      });
+    });
+  }
+
+  function renderInviteItem(inv) {
+    var isPresent = inv.statut === 'present';
+    var heure = inv.heure_arrivee ? new Date(inv.heure_arrivee).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    return '<div class="invite-item">' +
+      '<div class="invite-info">' +
+        '<div class="invite-name">' + inv.nom + '</div>' +
+        '<div class="invite-meta ' + (isPresent ? 'present' : '') + '">' +
+          (isPresent ? '✅ Arrivé à ' + heure + ' · ' + (inv.checked_by || '') : 'En attente') +
+        '</div>' +
+      '</div>' +
+      (inv.nombre_personnes > 1 ? '<span class="badge-persons">×' + inv.nombre_personnes + '</span>' : '') +
+      '<button class="check-btn ' + (isPresent ? 'present' : 'absent') + '" data-id="' + inv.id + '" data-statut="' + inv.statut + '">' +
+        (isPresent ? '✓' : '○') +
+      '</button>' +
+    '</div>';
+  }
+
+  function renderInvites() {
+    var content = document.getElementById('mainContent');
+    var sorted = allInvites.slice().sort(function(a, b) { return a.nom.localeCompare(b.nom); });
+    content.innerHTML = sorted.map(function(inv) { return renderInviteCard(inv); }).join('');
+    attachCardListeners();
+  }
+
+  function renderInviteCard(inv) {
+    var isPresent = inv.statut === 'present';
+    var heure = inv.heure_arrivee ? new Date(inv.heure_arrivee).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    var tableNom = inv.tables ? inv.tables.nom : '';
+    return '<div class="invite-card ' + (isPresent ? 'present' : '') + '">' +
+      '<button class="check-btn ' + (isPresent ? 'present' : 'absent') + '" data-id="' + inv.id + '" data-statut="' + inv.statut + '">' +
+        (isPresent ? '✓' : '○') +
+      '</button>' +
+      '<div class="invite-card-info">' +
+        '<div class="invite-card-name">' + inv.nom + (inv.nombre_personnes > 1 ? ' <span class="badge-persons">×' + inv.nombre_personnes + '</span>' : '') + '</div>' +
+        '<div class="invite-card-table">🪑 ' + tableNom + '</div>' +
+        (isPresent ? '<div class="invite-card-time">✅ ' + heure + ' · ' + (inv.checked_by || '') + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  function attachCardListeners() {
+    document.querySelectorAll('.check-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        toggleInvite(parseInt(this.getAttribute('data-id')), this.getAttribute('data-statut'));
+      });
+    });
+  }
+
+  function renderDashboard() {
+    var content = document.getElementById('mainContent');
+    var presents = allInvites.filter(function(i) { return i.statut === 'present'; }).reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+    var total = allInvites.reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+    var tablesFull = allTables.filter(function(t) {
+      var inv = allInvites.filter(function(i) { return i.table_id === t.id; });
+      return inv.length > 0 && inv.every(function(i) { return i.statut === 'present'; });
+    }).length;
+    content.innerHTML =
+      '<div class="dashboard-grid">' +
+        '<div class="dash-card"><div class="big-number" style="color:var(--green)">' + presents + '</div><div class="label">Personnes présentes</div></div>' +
+        '<div class="dash-card"><div class="big-number">' + (total - presents) + '</div><div class="label">Personnes attendues</div></div>' +
+        '<div class="dash-card"><div class="big-number" style="color:var(--green)">' + tablesFull + '</div><div class="label">Tables complètes</div></div>' +
+        '<div class="dash-card"><div class="big-number">' + (allTables.length - tablesFull) + '</div><div class="label">Tables incomplètes</div></div>' +
+      '</div>' +
+      '<div class="tables-overview">' +
+        allTables.map(function(t) {
+          var inv = allInvites.filter(function(i) { return i.table_id === t.id; });
+          var p = inv.filter(function(i) { return i.statut === 'present'; }).reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+          var tot = inv.reduce(function(s, i) { return s + i.nombre_personnes; }, 0);
+          var pct = tot > 0 ? (p / tot) * 100 : 0;
+          var color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--gold)' : 'rgba(255,255,255,0.2)';
+          return '<div class="table-overview-row">' +
+            '<div class="table-overview-num">' + t.nom + '</div>' +
+            '<div class="table-overview-bar"><div class="table-overview-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+            '<div class="table-overview-count">' + p + '/' + tot + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+  }
+
+  async function toggleInvite(id, currentStatut) {
+    var isPresent = currentStatut === 'present';
+    var endpoint = isPresent ? '/api/invites/' + id + '/absent' : '/api/invites/' + id + '/present';
+    var res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hotesse: hotesse })
+    });
+    if (res.ok) showToast(isPresent ? '❌ Marqué absent' : '✅ Invité enregistré !');
+  }
+
+  function onSearch(val) {
+    if (!val.trim()) { renderCurrentTab(); return; }
+    var q = val.toLowerCase();
+    var results = allInvites.filter(function(i) { return i.nom.toLowerCase().indexOf(q) !== -1; });
+    var content = document.getElementById('mainContent');
+    if (!results.length) { content.innerHTML = '<div class="no-results">😕 Aucun invité trouvé</div>'; return; }
+    content.innerHTML = results.map(function(inv) { return renderInviteCard(inv); }).join('');
+    attachCardListeners();
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2500);
+  }
+
+  window.addEventListener('load', init);
+})();
+</script>
+</body>
+</html>
