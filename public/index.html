@@ -272,12 +272,15 @@
         renderTables();
       });
     });
-
-    document.querySelectorAll('.check-btn').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
+    
+    // AJOUTE CECI ICI :
+    document.querySelectorAll('.invites-list.open .check-btn').forEach(function(btn) {
+      btn.onclick = function(e) {
         e.stopPropagation();
-        toggleInvite(parseInt(this.getAttribute('data-id')), this.getAttribute('data-statut'));
-      });
+        const id = this.getAttribute('data-id');
+        const statut = this.getAttribute('data-statut');
+        toggleInvite(id, statut);
+      };
     });
   }
 
@@ -361,14 +364,24 @@
   }
 
   async function toggleInvite(id, currentStatut) {
-    var isPresent = currentStatut === 'present';
-    var endpoint = isPresent ? '/api/invites/' + id + '/absent' : '/api/invites/' + id + '/present';
-    var res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hotesse: hotesse })
-    });
-    if (res.ok) showToast(isPresent ? '❌ Marqué absent' : '✅ Invité enregistré !');
+    const nouveauStatut = (currentStatut === 'present') ? 'absent' : 'present';
+    const heure = (nouveauStatut === 'present') ? new Date().toISOString() : null;
+
+    const { error } = await db
+      .from('invites')
+      .update({ 
+        statut: nouveauStatut, 
+        heure_arrivee: heure,
+        checked_by: hotesse 
+      })
+      .eq('id', id);
+
+    if (error) {
+      showToast('⚠️ Erreur de mise à jour');
+    } else {
+      showToast(nouveauStatut === 'present' ? '✅ Arrivé !' : '❌ Absent');
+      // Pas besoin de rafraîchir, subscribeRealtime s'en occupe !
+    }
   }
 
   function onSearch(val) {
